@@ -8,7 +8,8 @@ import json
 import scipy.ndimage 
 import math 
 import cv2
-
+import matplotlib.pyplot as plt
+import tifffile
 
 image_size = 256 
 vector_norm = 25.0 
@@ -66,15 +67,16 @@ def rotate(sat_img, gt_seg, neighbors, samplepoints, angle=0, size=2048):
 				new_neighbors[nk].append(nn)
 
 
-	for k,vs in samplepoints.items():
+	new_samplepoints = samplepoints
+	# for k,vs in samplepoints.items():
 
-		new_samplepoints[k] = []
+	# 	new_samplepoints[k] = []
 
-		for v in vs:
-			nv = transfer(v, angle)
+	# 	for v in vs:
+	# 		nv = transfer(v, angle)
 
-			if inrange(nv, 256):
-				new_samplepoints[k].append(nv)
+	# 		if inrange(nv, 256):
+	# 			new_samplepoints[k].append(nv)
 
 	return sat_img, gt_seg, new_neighbors, new_samplepoints, mask
 
@@ -137,13 +139,15 @@ class Sat2GraphDataLoader():
 		global image_size 
 		image_size = imgsize 
 
-		self.input_sat = np.zeros((8,image_size,image_size,3))
+		#self.input_sat = np.zeros((8,image_size,image_size,3))
+		self.input_sat = np.zeros((8,image_size,image_size,4))
 		
 		self.gt_seg = np.zeros((8,image_size,image_size,1))
 		self.target_prob = np.zeros((8,image_size,image_size,2*(max_degree + 1)))
 		self.target_vector = np.zeros((8,image_size,image_size,2*(max_degree)))
 
-		self.noise_mask = (np.random.rand(64,64,3) - 0.5) * 0.8
+		#self.noise_mask = (np.random.rand(64,64,3) - 0.5) * 0.8
+		self.noise_mask = (np.random.rand(64,64,4) - 0.5) * 0.8
 
 
 		random.seed(1)
@@ -151,21 +155,21 @@ class Sat2GraphDataLoader():
 
 	def loadtile(self, ind):
 		
+#Load image
+		ind=0
 		try:
-			sat_img = scipy.ndimage.imread(self.folder + "/region_%d_sat.png" % ind).astype(np.float)
+			#sat_img = tifffile.imread(self.folder + "region_%d_sat.tif" % ind).astype(np.float)[:,:,:3]		#CM : changed all scipy.ndimage.imread to tifffile.imread
+			sat_img = plt.imread(self.folder + "region_%d_sat.png" % ind).astype(np.float)
 		except:
-			sat_img = scipy.ndimage.imread(self.folder + "/region_%d_sat.jpg" % ind).astype(np.float)
+			sat_img = tifffile.imread(self.folder + "region_%d_sat.tif" % ind).astype(np.float)
 					
 		max_v = np.amax(sat_img) + 0.0001 
 
 		sat_img = (sat_img.astype(np.float)/ max_v - 0.5) * 0.9 
 
-		sat_img = sat_img.reshape((1,self.dataset_image_size,self.dataset_image_size,3))
+		#sat_img = sat_img.reshape((1,self.dataset_image_size,self.dataset_image_size,3))
+		sat_img = sat_img.reshape((1,self.dataset_image_size,self.dataset_image_size,4))
 
-		#Image.fromarray(((sat_img[0,:,:,:] + 0.5) * 255.0).astype(np.uint8)).save("outputs/test.png")
-
-		#print(np.shape(sat_img))
-		
 
 		tiles_prob = np.zeros((1,self.dataset_image_size, self.dataset_image_size, 2 * (self.max_degree + 1)))
 		tiles_vector = np.zeros((1, self.dataset_image_size, self.dataset_image_size, 2 * (self.max_degree)))
@@ -174,7 +178,8 @@ class Sat2GraphDataLoader():
 		tiles_vector[:,:,:,1::2] = 1
 	
 		try:
-			neighbors = pickle.load(open(self.folder + "/region_%d_refine_gt_graph.p" % ind))
+			neighbors = pickle.load(open(self.folder + "/region_%d_refine_gt_graph.p" % ind, 'rb'))
+			#neighbors = pickle.load(open(self.folder + "region_%d_graph_gt.p" % ind))
 			neighbors = neighbor_to_integer(neighbors)
 
 			if self.transpose:
@@ -214,20 +219,23 @@ class Sat2GraphDataLoader():
 							tiles_vector[i,x,y,2*j] = (n_loc[0] - loc[0])/vector_norm
 							tiles_vector[i,x,y,2*j+1] = (n_loc[1] - loc[1])/vector_norm
 		except:
+			print('---CM--- No neighbors')
 			pass
 
 		return sat_img, tiles_prob, tiles_vector
 
 	# num = 1024 is useless here.
 	def preload(self, num = 1024, seg_only = False):
-		self.noise_mask = (np.random.rand(64,64,3)) * 1.0 + 0.5
+		#self.noise_mask = (np.random.rand(64,64,3)) * 1.0 + 0.5
+		self.noise_mask = (np.random.rand(64,64,4)) * 1.0 + 0.5
 
 		image_size = self.image_size
 
 		tiles = []
 
 		
-		self.tiles_input = np.zeros((self.preload_tiles, self.dataset_image_size, self.dataset_image_size,3))
+		#self.tiles_input = np.zeros((self.preload_tiles, self.dataset_image_size, self.dataset_image_size,3))
+		self.tiles_input = np.zeros((self.preload_tiles, self.dataset_image_size, self.dataset_image_size,4))
 		
 		self.tiles_gt_seg = np.zeros((self.preload_tiles, self.dataset_image_size, self.dataset_image_size,1))
 		
@@ -245,29 +253,38 @@ class Sat2GraphDataLoader():
 		for i in range(self.preload_tiles):
 			ind = random.choice(self.indrange)
 
-			# load sample points 
-			samplepoints = json.load(open(self.folder + "/region_%d_refine_gt_graph_samplepoints.json" % ind,"r"))
-			self.samplepoints.append(samplepoints)
+
+#Load sample points 
+		#	samplepoints = json.load(open(self.folder + "/region_%d_refine_gt_graph_samplepoints.json" % ind,"r"))
+		#	self.samplepoints.append(samplepoints)
+			samplepoints = []
 
 			
-			
+
+#Load image
 			try:
-				sat_img = scipy.ndimage.imread(self.folder + "/region_%d_sat.png" % ind)
+				#sat_img = tifffile.imread(self.folder + "region_%d_sat.tif" % ind)[:,:,:3]
+				sat_img = plt.imread(self.folder + "region_%d_sat.png" % ind)
 			except:
-				sat_img = scipy.ndimage.imread(self.folder + "/region_%d_sat.jpg" % ind)
+				sat_img = tifffile.imread(self.folder + "region_%d_sat.tif" % ind)
 
 			max_v = np.amax(sat_img) + 0.0001 
 
 			
 
-
-			neighbors = pickle.load(open(self.folder + "/region_%d_refine_gt_graph.p" % ind))
+#Load refined gt graph
+			neighbors = pickle.load(open(self.folder + "region_%d_refine_gt_graph.p" % ind, 'rb'))			#CM : added read in bytes
 			neighbors = neighbor_to_integer(neighbors)
 
 			if self.transpose:
 				neighbors = neighbor_transpos(neighbors)
 
-			gt_seg = scipy.ndimage.imread(self.folder + "/region_%d_gt.png" % ind)
+#Load gt image
+			try:
+				gt_seg = tifffile.imread(self.folder + "region_%d_gt.tif" % ind)
+			except:
+				gt_seg = plt.imread(self.folder + "region_%d_gt.png" % ind)
+
 
 			self.rotmask[i,:,:] = np.ones((self.dataset_image_size, self.dataset_image_size))
 
@@ -342,64 +359,71 @@ class Sat2GraphDataLoader():
 		for i in range(batchsize):
 			c = 0
 			while True:
-				tile_id = random.randint(0,self.preload_tiles-1)
+				#tile_id = random.randint(0,self.preload_tiles - 1)
+				tile_id = 0 			#CM : single big image fro ryam and nord cotiere
 
-				coin = random.randint(0,99)
+				x = random.randint(256, self.dataset_image_size-256-image_size)
+				y = random.randint(256, self.dataset_image_size-256-image_size)
 
-				if coin < 20: # 20%
-					while True:
+				#if self.rotmask[tile_id,x,y] > 0.5:
+				#	break
+
+				# coin = random.randint(0,99)
+
+				# if coin < 20: # 20%
+				# 	while True:
 						
-						x = random.randint(256, self.dataset_image_size-256-image_size)
-						y = random.randint(256, self.dataset_image_size-256-image_size)
+				# 		x = random.randint(256, self.dataset_image_size-256-image_size)
+				# 		y = random.randint(256, self.dataset_image_size-256-image_size)
 
 
-						if self.rotmask[tile_id,x,y] > 0.5:
-							break
+				# 		if self.rotmask[tile_id,x,y] > 0.5:
+				# 			break
 
-				elif coin < 40: # complicated intersections 
-					sps =  self.samplepoints[tile_id]['complicated_intersections']
+				# elif coin < 40: # complicated intersections 
+				# 	sps =  self.samplepoints[tile_id]['complicated_intersections']
 
-					if len(sps) == 0:
-						c += 1 
-						continue
+				# 	if len(sps) == 0:
+				# 		c += 1 
+				# 		continue
 
-					ind = random.randint(0, len(sps)-1)
+				# 	ind = random.randint(0, len(sps)-1)
 
-					x = sps[ind][0] - image_size/2
-					y = sps[ind][1] - image_size/2
+				# 	x = sps[ind][0] - image_size/2
+				# 	y = sps[ind][1] - image_size/2
 
-					x = np.clip(x, 256, self.dataset_image_size-256-image_size)
-					y = np.clip(y, 256, self.dataset_image_size-256-image_size)
+				# 	x = np.clip(x, 256, self.dataset_image_size-256-image_size)
+				# 	y = np.clip(y, 256, self.dataset_image_size-256-image_size)
 					
-				elif coin < 60: # parallel roads 
-					sps =  self.samplepoints[tile_id]['parallel_road']
+				# elif coin < 60: # parallel roads 
+				# 	sps =  self.samplepoints[tile_id]['parallel_road']
 
-					if len(sps) == 0:
-						c += 1 
-						continue
+				# 	if len(sps) == 0:
+				# 		c += 1 
+				# 		continue
 
-					ind = random.randint(0, len(sps)-1)
+				# 	ind = random.randint(0, len(sps)-1)
 
-					x = sps[ind][0] - image_size/2
-					y = sps[ind][1] - image_size/2
+				# 	x = sps[ind][0] - image_size/2
+				# 	y = sps[ind][1] - image_size/2
 
-					x = np.clip(x, 256, self.dataset_image_size-256-image_size)
-					y = np.clip(y, 256, self.dataset_image_size-256-image_size)
+				# 	x = np.clip(x, 256, self.dataset_image_size-256-image_size)
+				# 	y = np.clip(y, 256, self.dataset_image_size-256-image_size)
 
-				else: # overpass
-					sps =  self.samplepoints[tile_id]['overpass']
+				# else: # overpass
+				# 	sps =  self.samplepoints[tile_id]['overpass']
 
-					if len(sps) == 0:
-						c += 1 
-						continue
+				# 	if len(sps) == 0:
+				# 		c += 1 
+				# 		continue
 
-					ind = random.randint(0, len(sps)-1)
+				# 	ind = random.randint(0, len(sps)-1)
 
-					x = sps[ind][0] - image_size/2
-					y = sps[ind][1] - image_size/2
+				# 	x = sps[ind][0] - image_size/2
+				# 	y = sps[ind][1] - image_size/2
 
-					x = np.clip(x, 256, self.dataset_image_size-256-image_size)
-					y = np.clip(y, 256, self.dataset_image_size-256-image_size)
+				# 	x = np.clip(x, 256, self.dataset_image_size-256-image_size)
+				# 	y = np.clip(y, 256, self.dataset_image_size-256-image_size)
 
 				x = int(x)
 				y = int(y)

@@ -37,12 +37,12 @@ def graphInsert(node_neighbor, n1key, n2key):
 	return node_neighbor
 
 
-def graphDensify(node_neighbor, density = 0.00020):
+def graphDensify(node_neighbor, density = 0.1):
 	visited = []
 
 	new_node_neighbor = {}
 
-	for node, node_nei in node_neighbor.iteritems():
+	for node, node_nei in node_neighbor.items():
 		if len(node_nei) == 1 or len(node_nei) > 2:
 			if node in visited:
 				continue
@@ -75,9 +75,9 @@ def graphDensify(node_neighbor, density = 0.00020):
 				pd = [0]
 
 				for i in range(len(node_list)-1):
-					pd.append(pd[-1]+GPSDistance(node_list[i], node_list[i+1]))
+					pd.append(pd[-1]+np.sqrt((node_list[i][0]-node_list[i+1][0])**2 + (node_list[i][1]-node_list[i+1][1])**2))
 
-				interpolate_N = int(pd[-1]/density)
+				interpolate_N = int(pd[-1]*density)
 
 				last_loc = node_list[0]
 
@@ -89,10 +89,10 @@ def graphDensify(node_neighbor, density = 0.00020):
 
 							loc = ((1-a) * node_list[j][0] + a * node_list[j+1][0], (1-a) * node_list[j][1] + a * node_list[j+1][1])
 
-							new_node_neighbor = graphInsert(new_node_neighbor, last_loc, loc)
+							new_node_neighbor = graphInsert(new_node_neighbor, tuple([int(a) for a in last_loc]), tuple([int(a) for a in loc]))
 							last_loc = loc 
 
-				new_node_neighbor = graphInsert(new_node_neighbor, last_loc, node_list[-1])
+				new_node_neighbor = graphInsert(new_node_neighbor, tuple([int(a) for a in last_loc]), tuple([int(a) for a in node_list[-1]]))
 
 	return new_node_neighbor
 

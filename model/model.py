@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import tflearn
-from tensorflow.contrib.layers.python.layers import batch_norm
+from tensorflow.contrib.layers import batch_norm
 import random
 import pickle 
 import scipy.ndimage as nd 
@@ -22,7 +22,7 @@ MAX_DEGREE=6
 
 
 class Sat2GraphModel():
-	def __init__(self, sess, image_size=352, image_ch = 3, downsample_level = 1, batchsize = 8, resnet_step=8, channel=12, mode = "train", joint_with_seg=True):
+	def __init__(self, sess, image_size=352, image_ch = 4, downsample_level = 1, batchsize = 8, resnet_step=8, channel=12, mode = "train", joint_with_seg=True):
 		self.sess = sess 
 		self.train_seg = False
 		self.image_size = image_size
@@ -87,8 +87,9 @@ class Sat2GraphModel():
 			#self.train_op = tf.train.AdamOptimizer(learning_rate=self.lr).apply_gradients(zip(self.l2loss_grad, tf.trainable_variables()))
 			self.train_op = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.loss)
 
-
+		print('pre init')
 		self.sess.run(tf.global_variables_initializer())
+		print('post init')
 		self.saver = tf.train.Saver(max_to_keep=10)
 
 		self.summary_loss = []

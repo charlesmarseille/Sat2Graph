@@ -31,7 +31,7 @@ def graph_refine(graph, isolated_thr = 150, spurs_thr = 30, three_edge_loop_thr 
 	gid = 0 
 	grouping = {}
 
-	for k, v in neighbors.iteritems():
+	for k, v in neighbors.items():		#CM : changed all iteritems to items (python2 to 3)
 		if k not in grouping:
 			# start a search 
 
@@ -405,14 +405,14 @@ def _vis(_node_neighbors, save_file, size=2048, bk=None, draw_intersection = Fal
 	edge_width = 2
 	
 	
-	for k,v in node_neighbors.iteritems():
+	for k,v in node_neighbors.items():
 		n1 = k 
 		for n2 in v:
 			cv2.line(img, (n1[1], n1[0]), (n2[1], n2[0]), color_edge,edge_width)
 
 	scale = 1
 	
-	for k,v in node_neighbors.iteritems():
+	for k,v in node_neighbors.items():
 		n1 = k 
 		cv2.circle(img, (int(n1[1]) * scale,int(n1[0]) * scale), 2, (255,0,0),-1)
 		
@@ -420,7 +420,7 @@ def _vis(_node_neighbors, save_file, size=2048, bk=None, draw_intersection = Fal
 	cp, _ = locate_stacking_road(node_neighbors)
 
 
-	for k, v in cp.iteritems():
+	for k, v in cp.items():
 		e1 = k[0]
 		e2 = k[1]
 
@@ -904,7 +904,7 @@ def DecodeAndVis(imagegraph, filename, imagesize=256, max_degree=6, thr=0.5, edg
 	Image.fromarray(rgb).save(filename+"_imagegraph.png")
 	Image.fromarray(rgb2).save(filename+"_intersection_node.png")
 
-	pickle.dump(graph, open(filename+"_graph.p","w"))
+	pickle.dump(graph, open(filename+"_graph.p","wb"))			#CM : change w to wb (write bytes error)
 
 	return graph
 

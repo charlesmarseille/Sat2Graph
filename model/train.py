@@ -11,7 +11,7 @@ import sys
 import random 
 import json 
 import argparse
-
+import matplotlib.pyplot as plt
 
 # This file supports training and testing Sat2Graph models on both the 20cities dataset and Spacenet dataset.  
 # 
@@ -84,6 +84,11 @@ run = "run-"+datetime.today().strftime('%Y-%m-%d-%H-%M-%S')+"-"+instance_id
 
 osmdataset = "../data/20cities/"
 spacenetdataset = "../data/spacenet/"
+ryam_dataset = "../data/ryam/"
+ryam_dataset_2 = "../data/ryam2/"
+
+train_dataset = ryam_dataset
+test_dataset = ryam_dataset
 
 image_size = args.image_size
 
@@ -96,13 +101,17 @@ if args.mode != "train":
 	batch_size = 1
 
 validation_folder = "validation_" + instance_id 
-Popen("mkdir -p "+validation_folder, shell=True).wait()
+#Popen("mkdir -p "+validation_folder, shell=True).wait()
 
-model_save_folder = args.model_save + instance_id + "/"
+model_save_folder = 'weights/' + instance_id + "/"
 
 max_degree = 6
+#max_degree = 12
 
-Popen("mkdir -p %s" % model_save_folder, shell=True).wait()
+
+#CM
+n_images = 1
+
 
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.95)
 with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
@@ -122,10 +131,10 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 		print("Use the 20-city datasets")
 		# dataset partition
 		indrange_train = []
-		indrange_test = []
-		indrange_validation = []
+		indrange_test = [0]
+		indrange_validation = [0]
 
-		for x in range(180):
+		for x in range(n_images):
 			if x % 10 < 8 :
 				indrange_train.append(x)
 
@@ -144,22 +153,24 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 		
 
 		if args.mode == "train":
-			dataloader_train = Sat2GraphDataLoaderOSM(osmdataset, indrange_train, imgsize = image_size, preload_tiles = 4, testing = False, random_mask=True)
+			dataloader_train = Sat2GraphDataLoaderOSM(train_dataset, indrange_train, imgsize = image_size, preload_tiles = 4, testing = False, random_mask=True)
 			dataloader_train.preload(num=1024)
 
-			dataloader_test = Sat2GraphDataLoaderOSM(osmdataset, indrange_validation, imgsize = image_size, preload_tiles = len(indrange_validation), random_mask=False, testing=True)
+			dataloader_test = Sat2GraphDataLoaderOSM(train_dataset, indrange_validation, imgsize = image_size, preload_tiles = len(indrange_validation), random_mask=False, testing=True)
 			dataloader_test.preload(num=128)
 
 
 		else:
-			dataloader = Sat2GraphDataLoaderOSM(osmdataset, [], imgsize = image_size, preload_tiles = 1, random_mask=False)
+			dataloader = Sat2GraphDataLoaderOSM(test_dataset, [], imgsize = image_size, preload_tiles = 1, random_mask=False)
 
 			tiles = indrange_test
 			if args.mode == "validate":
 				tiles = indrange_validation
 			
-			Popen("mkdir -p rawoutputs_%s" % (args.instance_id), shell=True).wait()
-			Popen("mkdir -p outputs", shell=True).wait() 
+			#Popen("mkdir -p rawoutputs_%s" % (args.instance_id), shell=True).wait()
+			#Popen("mkdir -p outputs", shell=True).wait() 
+
+
 
 			for tile_id in tiles:
 				t0 = time()
@@ -190,14 +201,15 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 				gt_vector = np.pad(gt_vector, ((0,0),(32,32),(32,32),(0,0)), 'constant')
 				gt_prob = np.pad(gt_prob,((0,0),(32,32),(32,32),(0,0)), 'constant')
 				
-				for x in range(0,352*6-176-88,176/2):
+				#for x in range(0,352*6-176-88,176/2):
+				for x in range(0,int(352*6-176-88),int(176/2)):			#CM : changed range val to int
 					
 					progress = x/88
 
-					sys.stdout.write("\rProcessing Tile %d ...  "%tile_id + ">>" * progress + "--" * (20-progress))
+					sys.stdout.write("\rProcessing Tile %d ...  "%tile_id + ">>" * int(progress) + "--" * (20-int(progress)))		#CM : convert to int 
 					sys.stdout.flush()
 
-					for y in range(0,352*6-176-88,176/2):
+					for y in range(0,int(352*6-176-88),int(176/2)):			#CM : convert to int
 
 						alloutputs  = model.Evaluate(input_sat[:,x:x+image_size, y:y+image_size,:], gt_prob[:,x:x+image_size, y:y+image_size,:], gt_vector[:,x:x+image_size, y:y+image_size,:], gt_seg)
 						_output = alloutputs[1]
@@ -214,7 +226,8 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 				output_keypoints_img = (output[:,:,0] * 255.0).reshape((2048,2048)).astype(np.uint8)
 				Image.fromarray(output_keypoints_img).save("outputs/region_%d_output_keypoints.png" % tile_id)
 
-				input_sat_img = ((input_sat[0,:,:,:]+0.5) * 255.0).reshape((2048,2048,3)).astype(np.uint8)
+				#input_sat_img = ((input_sat[0,:,:,:]+0.5) * 255.0).reshape((2048,2048,3)).astype(np.uint8)
+				input_sat_img = ((input_sat[0,:,:,:]+0.5) * 255.0).reshape((2048,2048,4)).astype(np.uint8)
 				Image.fromarray(input_sat_img).save("outputs/region_%d_input.png" % tile_id)
 
 				DecodeAndVis(output, "outputs/region_%d_output" % (tile_id), thr=0.05, edge_thr = 0.05, snap=True, imagesize = 2048)
@@ -225,71 +238,12 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
 			exit()
 
-	else:
-		# CLEANING UP ... 
-		pass
-
-		# print("train with spacenet", args.spacenet)
-
-		# datasplit = json.load(open(args.spacenet + "/dataset.json", "r"))
-		# indrange_train = datasplit["train"]
-		# indrange_test = datasplit["test"]
-		# indrange_validation = datasplit["validation"]
-
-		# if args.mode == "train":
-
-		# 	dataloader_train = HGGDataLoaderSpacenet(args.spacenet, indrange_train, imgsize = image_size, preload_tiles = 100, loadseg = train_seg, load_rgb_image = use_SAT,random_mask=False if args.noda else True, dataset_image_size=400)
-		# 	dataloader_train.preload(num=1024)
-
-		# 	dataloader_test = HGGDataLoaderSpacenet(args.spacenet, indrange_validation, imgsize = image_size, preload_tiles = 100, loadseg = train_seg, load_rgb_image = use_SAT, random_mask=False,dataset_image_size=400)
-		# 	dataloader_test.preload(num=128)
-
-		# else:
-		# 	dataloader = HGGDataLoaderSpacenet(args.spacenet, [], imgsize = image_size, preload_tiles = 1, loadseg = train_seg, load_rgb_image = use_SAT,random_mask=False, testing=True, dataset_image_size=400)
-
-		# 	t0 = time()
-		# 	cc = 0
-
-		# 	Popen("mkdir -p /data/songtao/RoadMaster/rawoutputs_%s" % (args.instance_id), shell=True).wait()
-
-
-		# 	for prefix in indrange_test:
-				
-		# 		dataloader.preload(num=1, FixIndrange=[prefix])
-
-		# 		input_sat, gt_prob, gt_vector, gt_seg, gan_noisy, gt_angle = dataloader.getBatch(1, get_angle = True)
-
-		# 		if args.train_segmentation:
-		# 			alloutputs = model.EvaluateSegmentation(input_sat, gt_prob, gt_vector, gt_seg, input_angle_gt = gt_angle)
-		# 			output = alloutputs[1][0,:,:,:]
-								
-		# 			output_img = (output[:,:,0] * 255.0).reshape((352, 352)).astype(np.uint8)
-		# 			Image.fromarray(output_img).save("/data/songtao/RoadMaster/rawoutputs_%s/%s_seg.png" % (args.instance_id, prefix))
-
-		# 		else:
-		# 			alloutputs  = model.Evaluate(input_sat, gt_prob, gt_vector, gt_seg)
-
-		# 			_output = alloutputs[1]
-		# 			output = _output[0,:,:,:]
-
-		# 			ethr = thr = "0.01"
-
-		# 			np.save("/data/songtao/RoadMaster/rawoutputs_%s/%s_output_raw" % (args.instance_id, prefix), output)
-
-
-		# 		print(cc, len(indrange_test),prefix, time() - t0)
-		# 		t0 = time()
-		# 		cc += 1	
-
-
-		# 	exit()
-
 
 	validation_data = []
 
 	test_size = 32
 
-	for j in range(test_size/batch_size):
+	for j in range(int(test_size/batch_size)):
 		input_sat, gt_prob, gt_vector, gt_seg= dataloader_test.getBatch(batch_size)
 		validation_data.append([np.copy(input_sat), np.copy(gt_prob), np.copy(gt_vector), np.copy(gt_seg)])
 
@@ -334,7 +288,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 		t_train += time() - t0 			
 
 		if step % 10 == 0:
-			sys.stdout.write("\rbatch:%d "%step + ">>" * ((step - (step/200)*200)/10) + "--" * (((step/200+1)*200-step)/10))
+			sys.stdout.write("\rbatch:%d "%step + ">>" * int(((step - (step/200)*200)/10)) + "--" * int((((step/200+1)*200-step)/10)))
 			sys.stdout.flush()
 
 		if step > -1 and step % 200 == 0:
@@ -343,7 +297,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 			if step % 1000 == 0 or (step < 1000 and step % 200 == 0):
 				test_loss = 0
 
-				for j in range(-1,test_size/batch_size):
+				for j in range(-1,int(test_size/batch_size)):
 					if j >= 0:
 						input_sat, gt_prob, gt_vector, gt_seg = validation_data[j][0], validation_data[j][1], validation_data[j][2], validation_data[j][3]
 					if j == 0:
@@ -362,7 +316,8 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 					if step == 1000 or step % 2000 == 0 or (step < 1000 and step % 200 == 0):
 						for k in range(batch_size):
 							
-							input_sat_img = ((input_sat[k,:,:,:] + 0.5) * 255.0).reshape((image_size,image_size,3)).astype(np.uint8)
+							#input_sat_img = ((input_sat[k,:,:,:] + 0.5) * 255.0).reshape((image_size,image_size,3)).astype(np.uint8)
+							input_sat_img = ((input_sat[k,:,:,:] + 0.5) * 255.0).reshape((image_size,image_size,4)).astype(np.uint8)
 
 							# segmentation output (joint training)
 							output_img = (output[k,:,:,-2] * 255.0).reshape((image_size,image_size)).astype(np.uint8)
@@ -380,6 +335,11 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 							#ImageGraphVis(output[k,:,:,0:2 + 4*max_degree].reshape((image_size, image_size, 2 + 4*max_degree )), validation_folder+"/tile%d_output_graph_0.01.png" % (j*batch_size+k), thr=0.01, imagesize = image_size)
 							DecodeAndVis(output[k,:,:,0:2 + 4*max_degree].reshape((image_size, image_size, 2 + 4*max_degree )), validation_folder+"/tile%d_output_graph_0.01_snap.png" % (j*batch_size+k), thr=0.01, snap=True, imagesize = image_size)
 							#ImageGraphVis(gt_imagegraph[k,:,:,:].reshape((image_size, image_size, 2 + 4*max_degree )), validation_folder+"/tile%d_output_graph_gt.png" % (j*batch_size+k), thr=0.5, imagesize = image_size)
+
+							# plt.figure()
+							# plt.imshow(input_img)
+							# plt.figure()
+							# plt.imshow(output_img)
 
 
 				test_loss /= test_size/batch_size
@@ -406,7 +366,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 			t_load = 0 
 			t_train = 0 
 
-		if step > 0 and (step % 10000 == 0):
+		if step > 0 and (step % 200 == 0):
 			model.saveModel(model_save_folder + "model%d" % step)
 
 		if step > 0 and step % args.lr_decay_step == 0:
@@ -415,3 +375,5 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 		step += 1
 		if step == 300000+2:
 			break 
+#python train.py -model_save tmp -instance_id test -image_size 352 -model_recover ../model/weights/test_352_8__channel12/model2000 -mode test
+#python train.py -model_save tmp -instance_id test -image_size 352 -lr 0.01

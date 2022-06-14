@@ -53,8 +53,8 @@ def dot(x, y, sparse=False):
 
 def create_conv_layer(name, input_tensor, in_channels, out_channels, is_training = True, activation='relu', kx = 3, ky = 3, stride_x = 2, stride_y = 2, batchnorm=False, padding='VALID', add=None, deconv = False):
 	if deconv == False:
-		input_tensor = tf.pad(input_tensor, [[0, 0], [kx/2, kx/2], [kx/2, kx/2], [0, 0]], mode="CONSTANT")
-
+	#	input_tensor = tf.pad(input_tensor, [[0, 0], [kx/2, kx/2], [kx/2, kx/2], [0, 0]], mode="CONSTANT")
+		input_tensor = tf.pad(input_tensor, [[0, 0], [int(kx/2), int(kx/2)], [int(kx/2), int(kx/2)], [0, 0]], mode="CONSTANT")			#CM : changed float to int for padding
 
 	weights = tf.get_variable(name+'weights', shape=[kx, ky, in_channels, out_channels],
 			initializer=tf.truncated_normal_initializer(stddev=np.sqrt(0.02 / kx / ky / in_channels)),
