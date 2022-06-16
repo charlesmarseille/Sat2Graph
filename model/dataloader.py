@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import tifffile
 
 image_size = 256 
-vector_norm = 25.0 
+vector_norm = 10.0 
 
 # rotate 
 # (1) sat_img
@@ -158,7 +158,6 @@ class Sat2GraphDataLoader():
 #Load image
 		ind=0
 		try:
-			#sat_img = tifffile.imread(self.folder + "region_%d_sat.tif" % ind).astype(np.float)[:,:,:3]		#CM : changed all scipy.ndimage.imread to tifffile.imread
 			sat_img = plt.imread(self.folder + "region_%d_sat.png" % ind).astype(np.float)
 		except:
 			sat_img = tifffile.imread(self.folder + "region_%d_sat.tif" % ind).astype(np.float)
@@ -215,7 +214,6 @@ class Sat2GraphDataLoader():
 						for y in range(loc[1]-r, loc[1]+r+1):
 							tiles_prob[i,x,y,2+2*j] = 1
 							tiles_prob[i,x,y,2+2*j+1] = 0
-
 							tiles_vector[i,x,y,2*j] = (n_loc[0] - loc[0])/vector_norm
 							tiles_vector[i,x,y,2*j+1] = (n_loc[1] - loc[1])/vector_norm
 		except:
@@ -273,7 +271,7 @@ class Sat2GraphDataLoader():
 			
 
 #Load refined gt graph
-			neighbors = pickle.load(open(self.folder + "region_%d_refine_gt_graph.p" % ind, 'rb'))			#CM : added read in bytes
+			neighbors = pickle.load(open(self.folder + "region_%d_refine_gt_graph.p" % ind, 'rb'))
 			neighbors = neighbor_to_integer(neighbors)
 
 			if self.transpose:
@@ -302,8 +300,11 @@ class Sat2GraphDataLoader():
 				self.rotmask[i,:,:] = rotmask
 
 
-			self.tiles_input[i,:,:,:] = sat_img.astype(np.float)/ max_v - 0.5
-			self.tiles_gt_seg[i,:,:,0] = gt_seg.astype(np.float)/255.0 - 0.5
+			#self.tiles_input[i,:,:,:] = sat_img.astype(np.float)/ max_v - 0.5
+			self.tiles_input[i,:,:,:] = sat_img.astype(np.float)
+			# self.tiles_gt_seg[i,:,:,0] = gt_seg.astype(np.float)/255.0 - 0.5
+			self.tiles_gt_seg[i,:,:,0] = gt_seg.astype(np.float) -0.5
+
 			
 			
 			r = 1
@@ -341,7 +342,7 @@ class Sat2GraphDataLoader():
 							self.tiles_vector[i,x,y,2*j] = (n_loc[0] - loc[0]) / vector_norm
 							self.tiles_vector[i,x,y,2*j+1] = (n_loc[1] - loc[1]) / vector_norm
 
-
+ 
 			
 			if self.testing == False:
 				self.tiles_input[i,:,:,:] = self.tiles_input[i,:,:,:] * (0.8 + 0.2 * random.random()) - (random.random() * 0.4 - 0.2)
@@ -360,101 +361,46 @@ class Sat2GraphDataLoader():
 			c = 0
 			while True:
 				#tile_id = random.randint(0,self.preload_tiles - 1)
-				tile_id = 0 			#CM : single big image fro ryam and nord cotiere
+				tile_id = 0 			#CM : single big image for ryam and nord cotiere
 
 				x = random.randint(256, self.dataset_image_size-256-image_size)
 				y = random.randint(256, self.dataset_image_size-256-image_size)
-
-				#if self.rotmask[tile_id,x,y] > 0.5:
-				#	break
-
-				# coin = random.randint(0,99)
-
-				# if coin < 20: # 20%
-				# 	while True:
-						
-				# 		x = random.randint(256, self.dataset_image_size-256-image_size)
-				# 		y = random.randint(256, self.dataset_image_size-256-image_size)
-
-
-				# 		if self.rotmask[tile_id,x,y] > 0.5:
-				# 			break
-
-				# elif coin < 40: # complicated intersections 
-				# 	sps =  self.samplepoints[tile_id]['complicated_intersections']
-
-				# 	if len(sps) == 0:
-				# 		c += 1 
-				# 		continue
-
-				# 	ind = random.randint(0, len(sps)-1)
-
-				# 	x = sps[ind][0] - image_size/2
-				# 	y = sps[ind][1] - image_size/2
-
-				# 	x = np.clip(x, 256, self.dataset_image_size-256-image_size)
-				# 	y = np.clip(y, 256, self.dataset_image_size-256-image_size)
-					
-				# elif coin < 60: # parallel roads 
-				# 	sps =  self.samplepoints[tile_id]['parallel_road']
-
-				# 	if len(sps) == 0:
-				# 		c += 1 
-				# 		continue
-
-				# 	ind = random.randint(0, len(sps)-1)
-
-				# 	x = sps[ind][0] - image_size/2
-				# 	y = sps[ind][1] - image_size/2
-
-				# 	x = np.clip(x, 256, self.dataset_image_size-256-image_size)
-				# 	y = np.clip(y, 256, self.dataset_image_size-256-image_size)
-
-				# else: # overpass
-				# 	sps =  self.samplepoints[tile_id]['overpass']
-
-				# 	if len(sps) == 0:
-				# 		c += 1 
-				# 		continue
-
-				# 	ind = random.randint(0, len(sps)-1)
-
-				# 	x = sps[ind][0] - image_size/2
-				# 	y = sps[ind][1] - image_size/2
-
-				# 	x = np.clip(x, 256, self.dataset_image_size-256-image_size)
-				# 	y = np.clip(y, 256, self.dataset_image_size-256-image_size)
 
 				x = int(x)
 				y = int(y)
 
 
 				c += 1
-				if np.sum(self.tiles_gt_seg[tile_id,x:x+image_size, y:y+image_size,:]+0.5) < 20*20 and c < 10:
+
+				#filter gt data to ensure enough gt points are present in tile
+				a = np.sum(self.tiles_gt_seg[tile_id,x:x+image_size, y:y+image_size,:]+0.5)
+				if a < 20*20 and c<10:
 					continue
 
 				self.input_sat[i,:,:,:] = self.tiles_input[tile_id, x:x+image_size, y:y+image_size,:]
 				
-				if random.randint(0,100) < 50 and self.random_mask==True:
+				# if random.randint(0,100) < 50 and self.random_mask==True:
 
-					# add noise
-					for it in range(random.randint(1,5)):
-						xx = random.randint(0,image_size-64-1)
-						yy = random.randint(0,image_size-64-1)
+				# 	# add noise
+				# 	for it in range(random.randint(1,5)):
+				# 		xx = random.randint(0,image_size-64-1)
+				# 		yy = random.randint(0,image_size-64-1)
 
-						self.input_sat[i,xx:xx+64,yy:yy+64,:] =  np.multiply(self.input_sat[i,xx:xx+64,yy:yy+64,:] + 0.5, self.noise_mask) - 0.5
+				# 		self.input_sat[i,xx:xx+64,yy:yy+64,:] =  np.multiply(self.input_sat[i,xx:xx+64,yy:yy+64,:] + 0.5, self.noise_mask) - 0.5
 					
-					# add more noise 
-					for it in range(random.randint(1,3)):
-						xx = random.randint(0,image_size-64-1)
-						yy = random.randint(0,image_size-64-1)
+				# 	# add more noise 
+				# 	for it in range(random.randint(1,3)):
+				# 		xx = random.randint(0,image_size-64-1)
+				# 		yy = random.randint(0,image_size-64-1)
 
-						self.input_sat[i,xx:xx+64,yy:yy+64,:] =  (self.noise_mask - 1.0) 
+				# 		self.input_sat[i,xx:xx+64,yy:yy+64,:] =  (self.noise_mask - 1.0) 
 					
 
 				self.target_prob[i,:,:,:] = self.tiles_prob[tile_id, x:x+image_size, y:y+image_size,:]
 				self.target_vector[i,:,:,:] = self.tiles_vector[tile_id, x:x+image_size, y:y+image_size,:]
 				self.gt_seg[i,:,:,:] = self.tiles_gt_seg[tile_id,x:x+image_size, y:y+image_size,:]
+
+				np.save
 
 				break
 

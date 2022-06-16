@@ -28,10 +28,10 @@ import matplotlib.pyplot as plt
 parser = argparse.ArgumentParser()
 
 parser.add_argument('-model_save', action='store', dest='model_save', type=str,
-                    help='model save folder ', required =True)
+                    help='model save folder ', required =True, default='tmp')
 
 parser.add_argument('-instance_id', action='store', dest='instance_id', type=str,
-                    help='instance_id ', required =True)
+                    help='instance_id ', required =True, default='test')
 
 parser.add_argument('-model_recover', action='store', dest='model_recover', type=str,
                     help='model recover ', required =False, default=None)
@@ -84,11 +84,11 @@ run = "run-"+datetime.today().strftime('%Y-%m-%d-%H-%M-%S')+"-"+instance_id
 
 osmdataset = "../data/20cities/"
 spacenetdataset = "../data/spacenet/"
-ryam_dataset = "../data/ryam/"
+ryam_dataset = "../data/ryam1/"
 ryam_dataset_2 = "../data/ryam2/"
 
 train_dataset = ryam_dataset
-test_dataset = ryam_dataset
+test_dataset = ryam_dataset_2
 
 image_size = args.image_size
 
@@ -131,8 +131,8 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 		print("Use the 20-city datasets")
 		# dataset partition
 		indrange_train = []
-		indrange_test = [0]
-		indrange_validation = [0]
+		indrange_test = [1]
+		indrange_validation = [1]
 
 		for x in range(n_images):
 			if x % 10 < 8 :
@@ -156,7 +156,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 			dataloader_train = Sat2GraphDataLoaderOSM(train_dataset, indrange_train, imgsize = image_size, preload_tiles = 4, testing = False, random_mask=True)
 			dataloader_train.preload(num=1024)
 
-			dataloader_test = Sat2GraphDataLoaderOSM(train_dataset, indrange_validation, imgsize = image_size, preload_tiles = len(indrange_validation), random_mask=False, testing=True)
+			dataloader_test = Sat2GraphDataLoaderOSM(test_dataset, indrange_validation, imgsize = image_size, preload_tiles = len(indrange_validation), random_mask=False, testing=True)
 			dataloader_test.preload(num=128)
 
 
@@ -377,3 +377,18 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 			break 
 #python train.py -model_save tmp -instance_id test -image_size 352 -model_recover ../model/weights/test_352_8__channel12/model2000 -mode test
 #python train.py -model_save tmp -instance_id test -image_size 352 -lr 0.01
+
+
+
+######################
+#Read predicted graph
+filename = "C:/Users/cmarseille/Documents/GitHub/Sat2Graph/model/validation_test_352_8__channel12/tile0_output_graph_0.01_snap.png_graph.p"
+pred_g = pickle.load(open(filename,"rb"))
+
+nodes = pred_g.nodes()
+ps = np.array([nodes[i]['o'] for i in nodes])
+plt.plot(ps[:,1], ps[:,0], 'k.')
+
+for (start,end) in pred_g.edges():
+	ps = pred_g[start][end]['pts']
+	plt.plot(ps[:,1], ps[:,0], 'green')

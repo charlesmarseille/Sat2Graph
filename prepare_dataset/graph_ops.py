@@ -99,7 +99,7 @@ def graphDensify(node_neighbor, density = 0.1):
 def graph2RegionCoordinate(node_neighbor, region):
 	new_node_neighbor = {}
 
-	for node, nei in node_neighbor.iteritems():
+	for node, nei in node_neighbor.items():
 		loc0 = node 
 		for loc1 in nei:
 			x0 = (loc0[1] - region[1])/(region[3]-region[1])*2048
@@ -119,7 +119,7 @@ def graphVis2048(node_neighbor, region, filename):
 	img = np.zeros((2048,2048,3),dtype=np.uint8)
 	img = img + 255 
 
-	for node, nei in node_neighbor.iteritems():
+	for node, nei in node_neighbor.items():
 		loc0 = node 
 		for loc1 in nei:
 			x0 = int((loc0[1] - region[1])/(region[3]-region[1])*2048)
@@ -130,7 +130,7 @@ def graphVis2048(node_neighbor, region, filename):
 			cv2.line(img, (x0,y0), (x1,y1), (0,0,0),2)
 
 
-	for node, nei in node_neighbor.iteritems():
+	for node, nei in node_neighbor.items():
 		loc0 = node 
 		x0 = int((loc0[1] - region[1])/(region[3]-region[1])*2048)
 		y0 = int((region[2]-loc0[0])/(region[2]-region[0])*2048)
@@ -143,7 +143,7 @@ def graphVis2048Segmentation(node_neighbor, region, filename, size=2048):
 	img = np.zeros((size,size),dtype=np.uint8)
 	
 
-	for node, nei in node_neighbor.iteritems():
+	for node, nei in node_neighbor.items():
 		loc0 = node 
 		for loc1 in nei:
 			x0 = int((loc0[1] - region[1])/(region[3]-region[1])*size)
@@ -173,7 +173,7 @@ def graphVisStackingRoad(node_neighbor, region, filename, size=2048):
 def graphVisIntersection(node_neighbor, region, filename, size=2048):
 	img = np.zeros((size,size),dtype=np.uint8)
 	
-	for node, nei in node_neighbor.iteritems():
+	for node, nei in node_neighbor.items():
 		loc0 = node 
 
 		if len(nei) != 2:
